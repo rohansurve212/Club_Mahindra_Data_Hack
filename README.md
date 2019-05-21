@@ -2,7 +2,7 @@ Club Mahindra Data Hack
 ==============================
 
 ## Problem Statement
-Given around ~300,000 reservations across 32 different hotels/holiday homes of Club Mahindra the objective is to predict the average spend of customers per room per night stay at the hotel against the booking. A wide variety of attributes on the reservation were provided which includes `booking_date`, `checkin_date`, `checkout_date` etc. Please visit the competition homepage for more information on the problem statement and the dataset.
+Given around ~300,000 reservations across 32 different hotels/holiday homes of Club Mahindra (CM) the objective is to predict the average spend of customers on food and beverages (FnB) per room per night stay at the hotel against the booking. A wide variety of attributes on the reservation were provided which includes `booking_date`, `checkin_date`, `checkout_date` etc. Please visit the competition homepage for more information on the problem statement and the dataset. (Source: https://datahack.analyticsvidhya.com/contest/club-mahindra-dataolympics/)
 
 ## Approach
 ### Feature Engineering
@@ -10,49 +10,55 @@ My approach is pretty straightforward which mainly revolves around feature engin
 
 ##### 1. Features on memberid
 
-* There were more than 100,000 unique member ids i.e. unique customers present in the whole dataset. But the train and test dataset didn't share any reservation for the same memberid. To put it in another way - the train and test dataset were split on memberid. Hence, it didn't make sense for me to use memberid itself as a variable in the model but a variety of different aggregated features on memberid proved to be the most important one later on. This also makes sense intuitively, as with customer level features the model could get additional information about the customers past and present behavior and more importantly relate similar customers in one way or the other.
+* There were more than 100,000 unique member ids i.e. unique customers present in the whole dataset. I have created a variety of different aggregated features on memberid, which would later prove to be the most important features. This also makes intuitive sense, as with customer level features the model could get additional information about the customers past and present behavior and more importantly relate similar customers in one way or the other.
 
-* I created a pool of such features which include:
+* I created a pool of such features (grouped by memberid) which include:
 
-    * total number of reservations by a member
-    * total number of reservation by a member on a particular resort
-    * total duration of holiday for each member
-    * average duration of each member for each trip taken
+    * total number of reservations
+    * total number of reservation at a particular resort
+    * total duration of stay against each reservation
+    * total number of unique resorts stayed at
+    * average duration for each trip taken
+    * average duration of booking a trip in advance
     * average number of people the member has travelled with in the past (total_pax)
-    * reservations in different type of resorts (resort_type_code)
-    * reservations in different type of rooms (room_type_booked_code)
-    * reservations in different holiday sessions (season_holidayed_code)
-    * reservations in different states (state_code_resort)
-    * reservations in different type of product categories (main_product_code)
-    * average of booking days in advance to checkin for each booking the member had in the past
+    * cumulative count of member bookings
+    * cumulative sum of days stayed at CM resorts  
+    * total number of reservations in different type of rooms (room_type_booked_code)
+    * total number of reservations in different holiday sessions (season_holidayed_code)
+    * total number of reservations in different states (state_code_resort)
+    * total number of reservations in different type of product categories (main_product_code)
     * etc.
-    
-* There were a significant number of reservations that had exact booking_date, checkin_date and checkout_date for a particular memberid. I thought of discarding those as duplicate rows but surpirisngly enough they had different target values amount_spent_per_room_night_scaled against them. I wasn't able to assess the quality of data discrepancy there but there seemed to be a good correlation of the target value inside those buckets. Adding a feature representing those buckets helped the score a bit.
 
 ##### 2. Temporal Features
 
-* These are the second most imporant feature in my pool of features. Temporal features almost always helps boosted trees as most of the time these models can leverage the cross-sectional correlation of the data (e.g. interaction between different features at a given observation level) but there is no way for the model to tackle the time dimension (e.g. latent interaction between two or more observations recorded at different time points). by infusing these featues explicitly - the model can also learn the cross-time correlation e.g. how booking of member in the past affects the nature of booking of a member at present. This is very important.
+* These are the second most imporant feature in my pool of features. Temporal features almost always helps boosted trees as most of the time these models can leverage the cross-sectional correlation of the data (e.g. interaction between different features at a given observation level) but there is no way for the model to tackle the time dimension (e.g. latent interaction between two or more observations recorded at different time points). By infusing these featues explicitly - the model can also learn the cross-time correlation e.g. how booking of member in the past affects the nature of booking of a member at present. This is very important.
 
 * The temporal features that I considered are:
 
-    * The sequential booking number of a member
-    * Days since last checkin
-    * The sequential booking number of a member in a particular resort
-    * Days since last checkin in a particular resort
+    For each member, compute:
+    * time gap between current booking date and previous booking date/next booking date
+    * time gap between current checkin date and previous checkin date/next checkin date
+    * time gap between current checkout date and previous checkout date/next checkout date
 
-Did you see a lot of booking happens on the same day by a member? It's normal in that when we plan a trip we tend to book the whole trip and a bunch of different hotels at the same time. A feature around that helped the model to learn if it's a continued trip and perhaps the spend in different hotels will be correlated in that trip.
-That said, there were instances where the booking were done in place something like an extended stay. A feature around that also helped to dertermine the nature of spend.
-##### 3. Resort_id features
+    For each member, compute:
+    * difference in duration of stay between current and previous/next visit
+    * difference in duration of advanced booking between current and previous/next visit
 
-* The last main feature set was about aggregating different attributes on resort level e.g. total booking in the resort in different room category and in different holiday sessions etc. This was not as important as the above two and I also didn't do a good ablation study on it but it helped diversifying the feature set nonetheless.
+    For each member-resort combination, compute:
+    * time gap between current booking date and previous booking date/next booking date
+    * time gap between current checkin date and previous checkin date/next checkin date
+    
+##### 3. GroupBy Multiple Features
+
+* Another major set of features were composed by taking multiple features and finding the total count of reservations grouped by these features
 
 ##### 4. Ratio features
 
-* I created a number of ratios between:
-duration of a stay by number of days the booking was done in advance
-number of children to number of adults travelling
-number of adults to number of roomnights
-etc.
+* I created a few ratio features. Some of those are:
+    * Ratio of duration of stay to number of roomnights
+    * Ratio of number of children to number of adults
+    * Ratio of duration of stay to duration of advance booking
+
 ### Modeling
 * I have 3 boosted trees ensemble models in total:
 
