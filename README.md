@@ -6,7 +6,7 @@ Given around ~300,000 reservations across 32 different hotels/holiday homes of C
 
 ## Approach
 ### Feature Engineering
-My approach is pretty straightforward which mainly revolves around feature engineering and feature selection. I tried many different combination of features and found the below three feature sets to be most useful for this contest.
+My approach, which is pretty straightforward, mainly revolves around feature engineering and feature selection. I tried many different combination of features and found the below three feature sets to be most useful for this contest.
 
 ##### 1. Features on memberid
 
